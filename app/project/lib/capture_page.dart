@@ -3,7 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:photo_manager/photo_manager.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(); // Firebase 초기화
+  runApp(MaterialApp(
+    debugShowCheckedModeBanner: false,
+    home: CaptureImageApp(),
+  ));
+}
 
 class CaptureImageApp extends StatefulWidget {
   @override
@@ -23,14 +33,12 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
     fetchNgrokUrl();
   }
 
-  // Firebase에서 ngrok URL 가져오기
   Future<void> fetchNgrokUrl() async {
     final ref = FirebaseDatabase.instance.ref("server/ngrok_url");
     final snapshot = await ref.get();
-
     if (snapshot.exists) {
       setState(() {
-        ngrokUrl = snapshot.value as String; // URL 문자열로 가져오기
+        ngrokUrl = snapshot.value as String;
       });
     } else {
       setState(() {
@@ -39,7 +47,6 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
     }
   }
 
-  // Flask 서버에서 두 개의 사진 요청
   Future<void> fetchImages() async {
     final url = Uri.parse('$ngrokUrl/capture_images');
     setState(() {
@@ -70,7 +77,6 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
     }
   }
 
-  // 갤러리에 이미지 저장
   Future<void> saveToGallery(String base64Image, String fileName) async {
     if (base64Image.isEmpty) return;
     try {
@@ -78,7 +84,7 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
       final result = await PhotoManager.editor.saveImage(
         bytes,
         title: fileName,
-        filename: "$fileName.jpg", // 필수 매개변수 추가
+        filename: "$fileName.jpg",
       );
       if (result != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -94,117 +100,174 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
     }
   }
 
+  Widget buildLiveImage(String base64Image) {
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.grey[300],
+            image: base64Image.isNotEmpty
+                ? DecorationImage(
+              image: MemoryImage(base64Decode(base64Image)),
+              fit: BoxFit.cover,
+            )
+                : null,
+          ),
+          child: base64Image.isEmpty
+              ? Center(child: Text("No image"))
+              : null,
+        ),
+        Positioned(
+          top: 8,
+          left: 8,
+          child: Row(
+            children: [
+              Icon(Icons.circle, color: Colors.red, size: 10),
+              SizedBox(width: 4),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.pink,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text("LIVE",
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Text(
+            "2025 / 04 / 07 / 14 : 30 : 31",
+            style: TextStyle(color: Colors.black, fontSize: 12),
+          ),
+        ),
+        ...[
+          Alignment.topLeft,
+          Alignment.topRight,
+          Alignment.bottomLeft,
+          Alignment.bottomRight,
+        ].map(
+              (align) => Align(
+            alignment: align,
+            child: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                border: Border(
+                  top: align == Alignment.topLeft ||
+                      align == Alignment.topRight
+                      ? BorderSide(color: Colors.yellow, width: 4)
+                      : BorderSide.none,
+                  left: align == Alignment.topLeft ||
+                      align == Alignment.bottomLeft
+                      ? BorderSide(color: Colors.yellow, width: 4)
+                      : BorderSide.none,
+                  bottom: align == Alignment.bottomLeft ||
+                      align == Alignment.bottomRight
+                      ? BorderSide(color: Colors.yellow, width: 4)
+                      : BorderSide.none,
+                  right: align == Alignment.topRight ||
+                      align == Alignment.bottomRight
+                      ? BorderSide(color: Colors.yellow, width: 4)
+                      : BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final formattedTime = captureTime != null
-        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(captureTime!)
-        : "No capture time";
-
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text("Capture Images App"),
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: Color(0xFF5E70FF),
+        title: Text("실시간 라이브"),
+        centerTitle: true,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // 캡처 시각
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: Text(
-                captureTime != null ? "Captured at: $formattedTime" : "No capture time",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey),
+      body: Column(
+        children: [
+          // 이미지 뷰 (비율 조정된 PageView)
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: AspectRatio(
+              aspectRatio: 4 / 3,
+              child: PageView(
+                children: [
+                  buildLiveImage(image1Base64),
+                  buildLiveImage(image2Base64),
+                ],
               ),
             ),
-            // 상단 이미지
-            Expanded(
-              child: Card(
-                margin: EdgeInsets.symmetric(vertical: 8.0),
-                elevation: 4.0,
-                child: Container(
-                  width: double.infinity,
-                  child: image1Base64.isNotEmpty
-                      ? Image.memory(
-                    base64Decode(image1Base64),
-                    fit: BoxFit.cover,
-                  )
-                      : Center(
-                    child: Text(
-                      "No image 1",
-                      style: TextStyle(color: Colors.grey[700]),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            // 하단 이미지
-            Expanded(
-              child: Card(
-                margin: EdgeInsets.symmetric(vertical: 8.0),
-                elevation: 4.0,
-                child: Container(
-                  width: double.infinity,
-                  child: image2Base64.isNotEmpty
-                      ? Image.memory(
-                    base64Decode(image2Base64),
-                    fit: BoxFit.cover,
-                  )
-                      : Center(
-                    child: Text(
-                      "No image 2",
-                      style: TextStyle(color: Colors.grey[700]),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            // 버튼 섹션
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          ),
+          // 버튼들
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
               children: [
-                ElevatedButton(
-                  onPressed: isLoading ? null : fetchImages,
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                    backgroundColor: Colors.blueAccent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: Icon(Icons.call),
+                    label: Text("SOS call"),
+                    onPressed: isLoading ? null : fetchImages,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color.fromARGB(255, 228, 49, 94),
+                      padding: EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      textStyle: TextStyle(fontSize: 16),
                     ),
                   ),
-                  child: isLoading
-                      ? SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                      : Text("Capture Images"),
                 ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (image1Base64.isNotEmpty) saveToGallery(image1Base64, 'image1');
-                    if (image2Base64.isNotEmpty) saveToGallery(image2Base64, 'image2');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                    backgroundColor: Colors.green,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                SizedBox(width: 16),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: Icon(Icons.image),
+                    label: Text("save photo"),
+                    onPressed: () {
+                      if (image1Base64.isNotEmpty)
+                        saveToGallery(image1Base64, 'image1');
+                      if (image2Base64.isNotEmpty)
+                        saveToGallery(image2Base64, 'image2');
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 18),
+                      side: BorderSide(color: Colors.blueAccent),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      textStyle: TextStyle(fontSize: 16),
                     ),
-                  ),
-                  child: Text(
-                    "Save to Gallery",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          SizedBox(height: 16),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 0,
+        items: [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: ''),
+        ],
       ),
     );
   }
