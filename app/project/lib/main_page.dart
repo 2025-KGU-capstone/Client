@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:test_project/visitor_combined_page.dart';
 import 'capture_page.dart';
 import 'fcm_check_page.dart';
 import 'notification_check_page.dart';
@@ -188,10 +189,10 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: () {
-              Get.to(() => VisitorCheckPage());
+              Get.to(() => VisitorCombinedPage());
             },
             icon: const Icon(Icons.person_search),
-            label: const Text("방문자 등록 확인"),
+            label: const Text("방문자 등록 / 확인"),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 80),
               side: const BorderSide(color: Colors.blueAccent),
