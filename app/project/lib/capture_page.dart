@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 
+import 'LiveStreamPage.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(); // Firebase 초기화
@@ -260,6 +262,37 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
             ),
           ),
           SizedBox(height: 16),
+
+          /// ✅ 새 스트리밍 버튼
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: ElevatedButton.icon(
+              icon: Icon(Icons.live_tv),
+              label: Text("실시간 스트리밍 보기"),
+              onPressed: () {
+                if (ngrokUrl.startsWith("http")) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => LiveStreamPage(streamUrl: "$ngrokUrl/video_feed"),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("ngrok URL을 가져오지 못했습니다.")),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                padding: EdgeInsets.symmetric(vertical: 18),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                textStyle: TextStyle(fontSize: 16),
+              ),
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
