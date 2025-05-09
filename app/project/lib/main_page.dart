@@ -4,8 +4,6 @@ import 'package:test_project/visitor_combined_page.dart';
 import 'capture_page.dart';
 import 'fcm_check_page.dart';
 import 'notification_check_page.dart';
-import 'visitor_check_page.dart';
-import 'visitor_registration_page.dart';
 import 'mypage.dart';
 
 class MainPage extends StatefulWidget {
