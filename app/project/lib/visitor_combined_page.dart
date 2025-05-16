@@ -6,6 +6,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_database/firebase_database.dart';
+import 'main_page.dart';
+import 'mypage.dart';
 
 class VisitorCombinedPage extends StatefulWidget {
   @override
@@ -17,6 +19,7 @@ class _VisitorCombinedPageState extends State<VisitorCombinedPage> {
   final picker = ImagePicker();
   String selectedFilter = '전체';
   String ngrokUrl = "Fetching...";
+  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -73,21 +76,6 @@ class _VisitorCombinedPageState extends State<VisitorCombinedPage> {
     final request = http.MultipartRequest('POST', Uri.parse("$ngrokUrl/upload"));
     request.files.add(await http.MultipartFile.fromPath('file', file.path));
     await request.send();
-  }
-
-  void showFilterMenu() {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => ListView(
-        children: ['전체', '오늘', '지난 7일', '한달'].map((option) => ListTile(
-          title: Text(option),
-          onTap: () {
-            setState(() => selectedFilter = option);
-            Navigator.pop(context);
-          },
-        )).toList(),
-      ),
-    );
   }
 
   void showRegisterDialog() {
@@ -263,8 +251,17 @@ class _VisitorCombinedPageState extends State<VisitorCombinedPage> {
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        onTap: (index) {},
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+          if (index == 0) {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => MainPage()));
+          } else if (index == 1) {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => MyPage()));
+          }
+        },
         items: [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "홈"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "마이페이지"),
