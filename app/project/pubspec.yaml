@@ -46,6 +46,8 @@ dependencies:
   shared_preferences:
   flutter_local_notifications:
   firebase_database:
+  smooth_page_indicator: ^1.1.0
+
 
 dev_dependencies:
   flutter_test:

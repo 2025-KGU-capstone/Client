@@ -1,21 +1,13 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_mjpeg/flutter_mjpeg.dart';
 import 'package:http/http.dart' as http;
-import 'package:photo_manager/photo_manager.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
-
-import 'LiveStreamPage.dart';
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // Firebase 초기화
-  runApp(MaterialApp(
-    debugShowCheckedModeBanner: false,
-    home: CaptureImageApp(),
-  ));
-}
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'image_preview_page.dart';
 
 class CaptureImageApp extends StatefulWidget {
   @override
@@ -29,10 +21,43 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
   bool isLoading = false;
   String ngrokUrl = "Fetching...";
 
+  final _pageController = PageController();
+  int _currentPage = 0;
+
+  late Timer _timer;
+  String _currentTime = "";
+
   @override
   void initState() {
     super.initState();
     fetchNgrokUrl();
+    _updateTime();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      _updateTime();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  void _updateTime() {
+    final now = DateTime.now().toLocal(); // KST
+    final formatter = DateFormat('yyyy / MM / dd / HH : mm : ss');
+    setState(() {
+      _currentTime = formatter.format(now);
+    });
+  }
+
+  Future<bool> checkStreamAvailable(String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
   }
 
   Future<void> fetchNgrokUrl() async {
@@ -51,9 +76,6 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
 
   Future<void> fetchImages() async {
     final url = Uri.parse('$ngrokUrl/capture_images');
-    setState(() {
-      isLoading = true;
-    });
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -79,48 +101,33 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
     }
   }
 
-  Future<void> saveToGallery(String base64Image, String fileName) async {
-    if (base64Image.isEmpty) return;
+  Future<void> sendAlert() async {
+    final url = Uri.parse('$ngrokUrl/Alert');
     try {
-      final bytes = base64Decode(base64Image);
-      final result = await PhotoManager.editor.saveImage(
-        bytes,
-        title: fileName,
-        filename: "$fileName.jpg",
-      );
-      if (result != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("$fileName saved to gallery")),
-        );
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        print('Alert sent successfully');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to save $fileName")),
-        );
+        print('HTTP Error: ${response.statusCode}');
       }
     } catch (e) {
-      print("Error saving to gallery: $e");
+      print('Error sending alert: $e');
     }
   }
 
-  Widget buildLiveImage(String base64Image) {
+  Widget buildLiveStream(String streamUrl) {
     return Stack(
       children: [
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            color: Colors.grey[300],
-            image: base64Image.isNotEmpty
-                ? DecorationImage(
-              image: MemoryImage(base64Decode(base64Image)),
-              fit: BoxFit.cover,
-            )
-                : null,
+        // ✅ MJPEG 실시간 스트림
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Mjpeg(
+            stream: streamUrl,
+            isLive: true,
           ),
-          child: base64Image.isEmpty
-              ? Center(child: Text("No image"))
-              : null,
         ),
+
+        // 🔴 LIVE 뱃지
         Positioned(
           top: 8,
           left: 8,
@@ -143,14 +150,18 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
             ],
           ),
         ),
+
+        // 🕒 현재 시각 (오른쪽 상단)
         Positioned(
           top: 8,
           right: 8,
           child: Text(
-            "2025 / 04 / 07 / 14 : 30 : 31",
-            style: TextStyle(color: Colors.black, fontSize: 12),
+            _currentTime,
+            style: const TextStyle(color: Colors.black, fontSize: 12),
           ),
         ),
+
+        // 🟨 노란 테두리 효과 (4모서리)
         ...[
           Alignment.topLeft,
           Alignment.topRight,
@@ -189,13 +200,30 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
     );
   }
 
+  Widget _buildStreamWithCheck(String url) {
+    return FutureBuilder<bool>(
+      future: checkStreamAvailable(url),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError || snapshot.data == false) {
+          return Center(child: Text("⚠️ 스트림에 연결할 수 없습니다."));
+        } else {
+          return buildLiveStream(url);
+        }
+        return buildLiveStream(url);
+      },
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Color(0xFF5E70FF),
-        title: Text("실시간 라이브"),
+        title: Text("실시간 확인"),
         centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
@@ -208,98 +236,85 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: AspectRatio(
-              aspectRatio: 4 / 3,
+              aspectRatio: 3 / 4,
               child: PageView(
+                controller: _pageController,
+                onPageChanged: (index) => setState(() => _currentPage = index),
                 children: [
-                  buildLiveImage(image1Base64),
-                  buildLiveImage(image2Base64),
+                  _buildStreamWithCheck("$ngrokUrl/video_feed"),
+                  _buildStreamWithCheck("$ngrokUrl/video_feed"),
                 ],
               ),
             ),
           ),
-          // 버튼들
+          Center(
+            child: SmoothPageIndicator(
+              controller: _pageController,
+              count: 2,
+              effect: WormEffect(
+                activeDotColor: Colors.blueAccent,
+                dotHeight: 8,
+                dotWidth: 8,
+              ),
+            ),
+          ),
+          SizedBox(height: 32),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
+                SizedBox(
+                  width: double.infinity,
                   child: ElevatedButton.icon(
-                    icon: Icon(Icons.call),
-                    label: Text("SOS call"),
-                    onPressed: isLoading ? null : fetchImages,
+                    icon: Icon(Icons.warning),
+                    label: Text("Alert"),
+                    onPressed: sendAlert,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color.fromARGB(255, 228, 49, 94),
-                      padding: EdgeInsets.symmetric(vertical: 18),
+                      padding: EdgeInsets.symmetric(vertical: 22),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      textStyle: TextStyle(fontSize: 16),
+                      textStyle: TextStyle(fontSize: 18),
                     ),
                   ),
                 ),
-                SizedBox(width: 16),
-                Expanded(
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
                   child: OutlinedButton.icon(
                     icon: Icon(Icons.image),
-                    label: Text("save photo"),
-                    onPressed: () {
-                      if (image1Base64.isNotEmpty)
-                        saveToGallery(image1Base64, 'image1');
-                      if (image2Base64.isNotEmpty)
-                        saveToGallery(image2Base64, 'image2');
+                    label: Text("Capture"),
+                    onPressed: () async {
+                      setState(() {
+                        isLoading = true;
+                      });
+                      await fetchImages();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                ImagePreviewPage(
+                                  image1Base64: image1Base64,
+                                  image2Base64: image2Base64,
+                                  captureTime: DateTime.now(),
+                                ),
+                          ),
+                        );
                     },
                     style: OutlinedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 18),
+                      padding: EdgeInsets.symmetric(vertical: 22),
                       side: BorderSide(color: Colors.blueAccent),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      textStyle: TextStyle(fontSize: 16),
+                      textStyle: TextStyle(fontSize: 18),
                     ),
                   ),
                 ),
               ],
             ),
-          ),
-          SizedBox(height: 16),
-
-          /// ✅ 새 스트리밍 버튼
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: ElevatedButton.icon(
-              icon: Icon(Icons.live_tv),
-              label: Text("실시간 스트리밍 보기"),
-              onPressed: () {
-                if (ngrokUrl.startsWith("http")) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => LiveStreamPage(streamUrl: "$ngrokUrl/video_feed"),
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("ngrok URL을 가져오지 못했습니다.")),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
-                padding: EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                textStyle: TextStyle(fontSize: 16),
-              ),
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        items: [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: ''),
+          )
         ],
       ),
     );
