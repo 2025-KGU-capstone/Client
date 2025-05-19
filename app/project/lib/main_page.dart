@@ -15,6 +15,7 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
+  final PageController _pageController = PageController();
 
   final List<Widget> _pages = [
     const HomeScreen(),
@@ -46,8 +47,16 @@ class _MainPageState extends State<MainPage> {
           ),
         ],
       ),
-      drawer: _buildDrawer(), // 드로어 표시
-      body: _pages[_selectedIndex],
+      drawer: _buildDrawer(),
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        children: _pages,
+      ),
       bottomNavigationBar: Stack(
         children: [
           Positioned(
@@ -75,6 +84,11 @@ class _MainPageState extends State<MainPage> {
               setState(() {
                 _selectedIndex = index;
               });
+              _pageController.animateToPage(
+                index,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
             },
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
@@ -84,6 +98,12 @@ class _MainPageState extends State<MainPage> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   Drawer _buildDrawer() {
@@ -159,44 +179,69 @@ class HomeScreen extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center, // 수직 가운데 정렬
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SizedBox(height: 30),
+          const Spacer(flex: 2), // 화면 상단 여백
+
           const Text(
-            "비대면으로 내 택배를 관리해보세요",
-            style: TextStyle(fontSize: 16, color: Colors.black87),
+            "비대면으로\n내 택배를 관리해보세요",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
-          const SizedBox(height: 30),
+
+          const SizedBox(height: 24),
+
           Image.asset(
             'assets/main_illustration.png',
-            height: 180,
+            height: 220,
           ),
-          const SizedBox(height: 50),
+
+          const SizedBox(height: 40),
+
           ElevatedButton.icon(
             onPressed: () {
               Get.to(() => CaptureImageApp());
             },
-            icon: const Icon(Icons.videocam),
-            label: const Text("실시간 확인"),
+            icon: const Icon(Icons.videocam, size: 32),
+            label: const Text(
+              "실시간 확인",
+              style: TextStyle(fontSize: 18),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blueAccent,
-              minimumSize: const Size(double.infinity, 80),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              minimumSize: const Size(double.infinity, 70),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
+
           const SizedBox(height: 16),
+
           OutlinedButton.icon(
             onPressed: () {
               Get.to(() => VisitorCombinedPage());
             },
-            icon: const Icon(Icons.person_search),
-            label: const Text("방문자 등록 / 확인"),
+            icon: const Icon(Icons.person_search, size: 28),
+            label: const Text(
+              "방문자 등록 / 확인",
+              style: TextStyle(fontSize: 18),
+            ),
             style: OutlinedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 80),
+              minimumSize: const Size(double.infinity, 70),
               side: const BorderSide(color: Colors.blueAccent),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
+
+          const Spacer(flex: 3), // 하단 여백
         ],
       ),
     );
