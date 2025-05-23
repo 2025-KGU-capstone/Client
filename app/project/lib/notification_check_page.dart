@@ -40,8 +40,9 @@ class _NotificationHistoryPageState extends State<NotificationHistoryPage> {
         title: Text("알림 기록"),
         actions: [
           IconButton(
-            icon: Icon(Icons.delete),
+            icon: Icon(Icons.delete_forever),
             onPressed: clearNotifications,
+            tooltip: '모든 알림 삭제',
           ),
         ],
       ),
@@ -50,18 +51,38 @@ class _NotificationHistoryPageState extends State<NotificationHistoryPage> {
         itemCount: notifications.length,
         itemBuilder: (context, index) {
           final notification = notifications[index];
-          return ListTile(
-            title: Text(notification['title']),
-            subtitle: Text(notification['body']),
-            trailing: Text(
-              notification['time'],
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: ListTile(
+              leading: Icon(
+                Icons.notifications,
+                color: Theme.of(context).primaryColor,
+              ),
+              title: Text(
+                notification['title'],
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(notification['body']),
+              trailing: Text(
+                notification['time'],
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
             ),
           );
         },
       )
           : Center(
-        child: Text("저장된 알림이 없습니다."),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.notifications_off, size: 48, color: Colors.grey),
+            SizedBox(height: 10),
+            Text(
+              "저장된 알림이 없습니다.",
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -75,7 +75,7 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
   }
 
   Future<void> fetchImages() async {
-    final url = Uri.parse('$ngrokUrl/capture_images');
+    final url = Uri.parse('$ngrokUrl/capture');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -102,7 +102,7 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
   }
 
   Future<void> sendAlert() async {
-    final url = Uri.parse('$ngrokUrl/Alert');
+    final url = Uri.parse('$ngrokUrl/siren');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -168,27 +168,26 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
           Alignment.bottomLeft,
           Alignment.bottomRight,
         ].map(
-              (align) => Align(
+          (align) => Align(
             alignment: align,
             child: Container(
               width: 30,
               height: 30,
               decoration: BoxDecoration(
                 border: Border(
-                  top: align == Alignment.topLeft ||
-                      align == Alignment.topRight
+                  top: align == Alignment.topLeft || align == Alignment.topRight
                       ? BorderSide(color: Colors.yellow, width: 4)
                       : BorderSide.none,
                   left: align == Alignment.topLeft ||
-                      align == Alignment.bottomLeft
+                          align == Alignment.bottomLeft
                       ? BorderSide(color: Colors.yellow, width: 4)
                       : BorderSide.none,
                   bottom: align == Alignment.bottomLeft ||
-                      align == Alignment.bottomRight
+                          align == Alignment.bottomRight
                       ? BorderSide(color: Colors.yellow, width: 4)
                       : BorderSide.none,
                   right: align == Alignment.topRight ||
-                      align == Alignment.bottomRight
+                          align == Alignment.bottomRight
                       ? BorderSide(color: Colors.yellow, width: 4)
                       : BorderSide.none,
                 ),
@@ -216,7 +215,6 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -241,8 +239,8 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
                 controller: _pageController,
                 onPageChanged: (index) => setState(() => _currentPage = index),
                 children: [
-                  _buildStreamWithCheck("$ngrokUrl/video_feed"),
-                  _buildStreamWithCheck("$ngrokUrl/video_feed"),
+                  buildLiveStream("$ngrokUrl/video_feed1"),
+                  buildLiveStream("$ngrokUrl/video_feed2"),
                 ],
               ),
             ),
@@ -290,17 +288,16 @@ class _CaptureImageAppState extends State<CaptureImageApp> {
                         isLoading = true;
                       });
                       await fetchImages();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                ImagePreviewPage(
-                                  image1Base64: image1Base64,
-                                  image2Base64: image2Base64,
-                                  captureTime: DateTime.now(),
-                                ),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ImagePreviewPage(
+                            image1Base64: image1Base64,
+                            image2Base64: image2Base64,
+                            captureTime: DateTime.now(),
                           ),
-                        );
+                        ),
+                      );
                     },
                     style: OutlinedButton.styleFrom(
                       padding: EdgeInsets.symmetric(vertical: 22),
