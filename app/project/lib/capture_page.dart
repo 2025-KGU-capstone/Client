@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_mjpeg/flutter_mjpeg.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'image_preview_page.dart';

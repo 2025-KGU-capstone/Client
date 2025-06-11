@@ -5,6 +5,8 @@ import 'capture_page.dart';
 import 'fcm_check_page.dart';
 import 'notification_check_page.dart';
 import 'mypage.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:http/http.dart' as http;
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -171,18 +173,60 @@ class _MainPageState extends State<MainPage> {
 }
 
 // 홈 화면 내용
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  bool isSafetyModeOn = false;
+  String ngrokUrl = "Fetching...";
+
+  void initState() {
+    super.initState();
+    fetchNgrokUrl();
+  }
+
+
+  Future<void> sendAlert() async {
+    final url = Uri.parse('$ngrokUrl/pir');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        print('sent successfully');
+      } else {
+        print('HTTP Error: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error: $e');
+    }
+  }
+
+  Future<void> fetchNgrokUrl() async {
+    final ref = FirebaseDatabase.instance.ref("server/ngrok_url");
+    final snapshot = await ref.get();
+    if (snapshot.exists) {
+      setState(() {
+        ngrokUrl = snapshot.value as String;
+      });
+    } else {
+      setState(() {
+        ngrokUrl = "No URL found in Firebase";
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center, // 수직 가운데 정렬
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Spacer(flex: 2), // 화면 상단 여백
+          const Spacer(flex: 2),
 
           const Text(
             "비대면으로\n내 택배를 관리해보세요",
@@ -241,7 +285,30 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
 
-          const Spacer(flex: 3), // 하단 여백
+          const Spacer(),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                "안전모드",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(width: 12),
+              Switch(
+                value: isSafetyModeOn,
+                onChanged: (value) {
+                  setState(() {
+                    isSafetyModeOn = value;
+                    sendAlert();
+                  });
+                },
+                activeColor: Colors.green,
+              ),
+            ],
+          ),
+
+          const Spacer(flex: 2),
         ],
       ),
     );
